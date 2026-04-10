@@ -4,6 +4,10 @@ import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import ScrollTrigger from "gsap/ScrollTrigger";
 import Car from "@/components/Car";
+import localFont from "next/font/local";
+import { Inter } from "next/font/google";
+
+const inter = Inter({ subsets: ["latin"] });
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -11,196 +15,172 @@ export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const carRef = useRef<HTMLDivElement>(null);
+  const revealContainerRef = useRef<HTMLDivElement>(null);
   const trailRef = useRef<HTMLDivElement>(null);
-  const valueTextRef = useRef<HTMLDivElement>(null);
-  const lettersRef = useRef<(HTMLSpanElement | null)[]>([]);
   
   const boxesRef = useRef<(HTMLDivElement | null)[]>([]);
 
   const text = "WELCOME ITZFIZZ";
-  const letters = text.split("");
 
   useEffect(() => {
-    // Media query to ensure we only run the complex layout on larger screens, 
-    // or just run it but ensure maxScroll bounds are safe.
-    
-    // 1. Initial Load Animation
+    // 1. Initial Load Animations
     const tl = gsap.timeline();
     
-    // Animate letters in with a staggered effect
     tl.fromTo(
-      lettersRef.current,
-      { y: 30, opacity: 0 },
-      { 
-        y: 0, 
-        opacity: 0.2, // Keep them dim initially
-        color: "#ffffff", 
-        duration: 0.8, 
-        stagger: 0.05, 
-        ease: "power2.out" 
-      }
-    )
-    // Then animate the boxes in
-    .fromTo(
+      ".base-text span",
+      { y: 50, opacity: 0 },
+      { y: 0, opacity: 0.2, duration: 1, stagger: 0.05, ease: "power4.out" }
+    ).fromTo(
       boxesRef.current,
-      { y: 20, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.6, stagger: 0.1, ease: "power2.out" },
-      "-=0.4"
+      { y: 50, opacity: 0, scale: 0.95 },
+      { y: 0, opacity: 1, scale: 1, duration: 0.8, stagger: 0.1, ease: "power3.out" },
+      "-=0.5"
     );
 
-    // 2. Scroll-based Animation setup
-    // We wait for initial render layout
+    // Car idle animation (bobbing)
+    gsap.to(carRef.current, {
+      y: "-=8",
+      repeat: -1,
+      yoyo: true,
+      duration: 0.4,
+      ease: "sine.inOut"
+    });
+
+    // 2. Scroll-Based Core Interaction
     const ctx = gsap.context(() => {
-      if (!carRef.current || !trailRef.current || !valueTextRef.current) return;
+      if (!carRef.current || !revealContainerRef.current) return;
       
-      const maxScroll = window.innerHeight;
       const roadWidth = window.innerWidth;
-      const carWidth = 200; // approximation of the car svg width in landscape
+      const carWidth = 200; 
       const endX = roadWidth - carWidth;
 
-      const valueRect = valueTextRef.current.getBoundingClientRect();
-      const letterElements = lettersRef.current.filter(l => l !== null) as HTMLSpanElement[];
-      
-      // Calculate each letter's offset from the start of the container
-      const letterOffsets = letterElements.map((letter) => letter.offsetLeft);
-
+      // The main scroll scrub
       gsap.to(carRef.current, {
         scrollTrigger: {
           trigger: containerRef.current,
           start: "top top",
           end: "bottom top", 
-          scrub: true,
+          scrub: 1, // Add slight delay (1s) to scrub for a buttery smooth lagging effect
           pin: trackRef.current,
         },
         x: endX,
         ease: "none",
         onUpdate: function () {
-          // The car is inside the road, its X is this.targets()[0].getBoundingClientRect?
-          // Instead we can just read the inline style or gsap property:
           const carX = gsap.getProperty(carRef.current, "x") as number;
           const carCenter = carX + carWidth / 2;
-          
-          // Expand the trail behind the car
-          gsap.set(trailRef.current, { width: carCenter });
+          const percentage = (carCenter / roadWidth) * 100;
 
-          // check letter intersections
-          letterElements.forEach((letter, i) => {
-            const letterX = valueRect.left + letterOffsets[i];
-            // If car center passed the letter
-            if (carCenter >= letterX) {
-              gsap.to(letter, {
-                opacity: 1,
-                color: "#111111",
-                duration: 0.1,
-                overwrite: "auto"
-              });
-            } else {
-              gsap.to(letter, {
-                opacity: 0.2,
-                color: "#ffffff",
-                duration: 0.1,
-                overwrite: "auto"
-              });
-            }
+          // Expand the trail behind the car smoothly
+          gsap.set(trailRef.current, { width: `${percentage}%` });
+
+          // Instead of iterating array of letters, we smoothly reveal the text container using clip-path
+          gsap.set(revealContainerRef.current, {
+            clipPath: `inset(0 ${100 - percentage}% 0 0)`
           });
         },
       });
 
-      // Stats boxes parallax or slight reveals using scroll bounds
-      // We already revealed them on load, but we can make them move slightly with scroll
+      // Advanced Parallax for Stat Boxes
       boxesRef.current.forEach((box, i) => {
         if (!box) return;
-        const speed = i % 2 === 0 ? 1.5 : 1.2;
+        const speed = i % 2 === 0 ? 0.8 : 1.5;
         gsap.to(box, {
           scrollTrigger: {
             trigger: containerRef.current,
             start: "top top",
             end: "bottom top",
-            scrub: true,
+            scrub: 1,
           },
-          y: -100 * speed,
+          y: -150 * speed,
           ease: "none"
         });
       });
 
-    }, containerRef); // Scope to container
+    }, containerRef);
 
-    return () => ctx.revert(); // cleanup on unmount
+    return () => ctx.revert();
   }, []);
 
   return (
-    <div ref={containerRef} className="relative h-[200vh] bg-neutral-900 w-full">
+    <div ref={containerRef} className={`relative h-[200vh] bg-gradient-to-br from-[#0a0a0a] to-[#121212] w-full ${inter.className}`}>
       <div 
         ref={trackRef} 
-        className="sticky top-0 h-screen w-full flex items-center justify-center overflow-hidden bg-neutral-800"
+        className="sticky top-0 h-screen w-full flex items-center justify-center overflow-hidden"
       >
-        {/* Road Background */}
-        <div className="relative w-full h-[250px] bg-neutral-900 flex items-center shadow-2xl">
+        {/* Sleek Dark Road Background */}
+        <div className="relative w-full h-[280px] bg-[#111111] flex items-center shadow-2xl border-y border-white/5 overflow-hidden">
           
-          {/* Green Trail Container */}
+          {/* Animated Glow behind the road */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[#def54f]/5 blur-3xl rounded-[100%]" />
+
+          {/* Smooth Gradient Trail Container */}
           <div 
             ref={trailRef}
-            className="absolute left-0 top-0 h-full bg-[#def54f] z-10 w-0"
-            style={{ transition: "none" }}
+            className="absolute left-0 top-0 h-full bg-gradient-to-r from-transparent via-[#def54f]/80 to-[#def54f] z-10 w-0 blur-[2px]"
           />
 
-          {/* Car */}
+          {/* Car Element */}
           <div 
             ref={carRef}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-[200px]"
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-30 w-[200px]"
           >
-            <Car className="w-full h-auto drop-shadow-2xl" />
+            <Car className="w-full h-auto drop-shadow-[0_0_20px_rgba(222,245,79,0.3)]" />
           </div>
 
-          {/* Value Text */}
-          <div 
-            ref={valueTextRef}
-            className="absolute left-[5%] top-1/2 -translate-y-[45%] z-30 flex gap-2 sm:gap-4 md:gap-6 lg:gap-8 font-black text-4xl sm:text-6xl md:text-8xl lg:text-9xl tracking-tighter"
-          >
-            {letters.map((char, index) => (
-              <span
-                key={index}
-                ref={(el) => { lettersRef.current[index] = el; }}
-                className="inline-block whitespace-pre"
-              >
+          {/* Typeface Base Layer (Dimmed) */}
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full text-center z-20 flex justify-center gap-2 sm:gap-4 md:gap-6 font-black text-5xl sm:text-7xl md:text-9xl tracking-tighter base-text">
+            {text.split("").map((char, index) => (
+              <span key={index} className="inline-block whitespace-pre text-white/20 select-none">
                 {char}
               </span>
             ))}
           </div>
 
+          {/* Typeface Reveal Layer (Vibrant) */}
+          <div 
+            ref={revealContainerRef}
+            className="absolute left-0 top-1/2 -translate-y-1/2 w-full text-center z-40 flex justify-center gap-2 sm:gap-4 md:gap-6 font-black text-5xl sm:text-7xl md:text-9xl tracking-tighter"
+            style={{ clipPath: "inset(0 100% 0 0)" }}
+          >
+            {text.split("").map((char, index) => (
+              <span key={`glow-${index}`} className="inline-block whitespace-pre text-[#111111] select-none text-shadow-sm">
+                {char}
+              </span>
+            ))}
+          </div>
         </div>
 
-        {/* Floating Stat Boxes */}
+        {/* Premium Glassmorphic Stat Boxes */}
         <div 
           ref={(el) => { boxesRef.current[0] = el; }}
-          className="absolute top-[10%] right-[30%] bg-[#def54f] text-neutral-900 p-6 md:p-8 rounded-xl shadow-lg z-40 max-w-[200px] md:max-w-[260px] opacity-0"
+          className="absolute top-[8%] right-[25%] bg-[#def54f]/90 backdrop-blur-md text-neutral-900 p-8 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.4)] border border-[#def54f] z-50 w-[280px]"
         >
-          <div className="text-4xl md:text-5xl font-bold mb-2">58%</div>
-          <p className="text-sm md:text-base font-medium">Increase in pick up point use</p>
+          <div className="text-5xl font-black mb-2 tracking-tight">58%</div>
+          <p className="text-sm font-semibold opacity-90 leading-relaxed">Increase in pick up point use</p>
         </div>
 
         <div 
           ref={(el) => { boxesRef.current[1] = el; }}
-          className="absolute bottom-[10%] right-[35%] bg-[#6ac9ff] text-neutral-900 p-6 md:p-8 rounded-xl shadow-lg z-40 max-w-[200px] md:max-w-[260px] opacity-0"
+          className="absolute bottom-[10%] right-[32%] bg-[#6ac9ff]/20 backdrop-blur-xl text-white p-8 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.4)] border border-[#6ac9ff]/40 z-50 w-[260px]"
         >
-          <div className="text-4xl md:text-5xl font-bold mb-2">23%</div>
-          <p className="text-sm md:text-base font-medium">Decreased in customer phone calls</p>
+          <div className="text-5xl font-black mb-2 tracking-tight text-[#6ac9ff]">23%</div>
+          <p className="text-sm font-medium text-neutral-300 leading-relaxed">Decreased in customer phone calls</p>
         </div>
 
         <div 
           ref={(el) => { boxesRef.current[2] = el; }}
-          className="absolute top-[15%] right-[5%] bg-neutral-800 text-white p-6 md:p-8 rounded-xl shadow-lg z-40 max-w-[200px] md:max-w-[260px] opacity-0 border border-neutral-700"
+          className="absolute top-[18%] right-[5%] bg-white/5 backdrop-blur-lg text-white p-8 rounded-2xl shadow-xl border border-white/10 z-50 w-[240px]"
         >
-          <div className="text-4xl md:text-5xl font-bold mb-2">27%</div>
-          <p className="text-sm md:text-base text-neutral-300">Increase in pick up point use</p>
+          <div className="text-5xl font-black mb-2 tracking-tight">27%</div>
+          <p className="text-sm font-medium text-neutral-400 leading-relaxed">Increase in pick up point use</p>
         </div>
 
         <div 
           ref={(el) => { boxesRef.current[3] = el; }}
-          className="absolute bottom-[15%] right-[10%] bg-[#fa7328] text-neutral-900 p-6 md:p-8 rounded-xl shadow-lg z-40 max-w-[200px] md:max-w-[260px] opacity-0"
+          className="absolute bottom-[18%] right-[10%] bg-[#fa7328]/90 backdrop-blur-md text-white p-8 rounded-2xl shadow-[0_20px_40px_rgba(250,115,40,0.2)] border border-[#fa7328] z-50 w-[260px]"
         >
-          <div className="text-4xl md:text-5xl font-bold mb-2">40%</div>
-          <p className="text-sm md:text-base font-medium">Decreased in customer phone calls</p>
+          <div className="text-5xl font-black mb-2 tracking-tight">40%</div>
+          <p className="text-sm font-medium opacity-90 leading-relaxed">Decreased in customer phone calls</p>
         </div>
 
       </div>
