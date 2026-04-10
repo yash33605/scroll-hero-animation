@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import ScrollTrigger from "gsap/ScrollTrigger";
-import Car from "@/components/Car";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -112,7 +111,7 @@ export default function Home() {
             ref={carRef}
             className="absolute left-0 top-[0%] z-[10] h-[200px] flex items-center"
           >
-            <Car className="h-full w-auto max-w-[150px]" />
+            <img src="./car.png" alt="car" className="h-auto w-auto max-w-[400px] drop-shadow-2xl" />
           </div>
 
           {/* Green Trail Container */}
